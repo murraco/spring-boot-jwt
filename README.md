@@ -54,6 +54,7 @@ spring-boot-jwt/
  ├── src/main/resources/
  │   └── application.yml
  │
+ ├── .gitignore
  ├── LICENSE
  ├── mvnw/mvnw.cmd
  ├── README.md
