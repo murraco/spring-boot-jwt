@@ -14,8 +14,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.GenericFilterBean;
 
 import murraco.exception.CustomException;
+import org.springframework.web.filter.OncePerRequestFilter;
 
-public class JwtTokenFilter extends GenericFilterBean {
+//we should use OncePerRequestFilter since we are doing a database call, there is no point in doing this more than once
+public class JwtTokenFilter extends OncePerRequestFilter {
 
   private JwtTokenProvider jwtTokenProvider;
 
@@ -24,22 +26,21 @@ public class JwtTokenFilter extends GenericFilterBean {
   }
 
   @Override
-  public void doFilter(ServletRequest req, ServletResponse res, FilterChain filterChain)
-      throws IOException, ServletException {
-
-    String token = jwtTokenProvider.resolveToken((HttpServletRequest) req);
+  protected void doFilterInternal(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse, FilterChain filterChain) throws ServletException, IOException {
+    String token = jwtTokenProvider.resolveToken(httpServletRequest);
     try {
       if (token != null && jwtTokenProvider.validateToken(token)) {
-        Authentication auth = token != null ? jwtTokenProvider.getAuthentication(token) : null;
+        Authentication auth = jwtTokenProvider.getAuthentication(token);
         SecurityContextHolder.getContext().setAuthentication(auth);
       }
     } catch (CustomException ex) {
-      HttpServletResponse response = (HttpServletResponse) res;
-      response.sendError(ex.getHttpStatus().value(), ex.getMessage());
+      //this is very important, since it guarantees the user is not authenticated at all
+      SecurityContextHolder.clearContext();
+      httpServletResponse.sendError(ex.getHttpStatus().value(), ex.getMessage());
       return;
     }
 
-    filterChain.doFilter(req, res);
+    filterChain.doFilter(httpServletRequest, httpServletResponse);
   }
 
 }
