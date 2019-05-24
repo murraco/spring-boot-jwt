@@ -316,6 +316,26 @@ http.apply(new JwtTokenFilterConfigurer(jwtTokenProvider));
 // http.httpBasic();
 ```
 
+# How to use this code?
+
+1. Make sure you have Java 1.8 and maven installed
+
+```
+mvn install
+```
+
+2. Run the project
+
+```
+mvn spring-boot:run
+```
+
+3. Navigate to `http://localhost:8000/swagger-ui.html` in your browser to check everything is working correctly. You can change the default port in the following `application.yml` file.
+
+```
+server:
+     port: 8090
+```
 # Contribution
 
 - Report issues
