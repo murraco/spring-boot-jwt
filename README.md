@@ -345,7 +345,7 @@ http.apply(new JwtTokenFilterConfigurer(jwtTokenProvider));
   $ mvn spring-boot:run
   ```
 
-6. Navigate to `http://localhost:8000/swagger-ui.html` in your browser to check everything is working correctly. You can change the default port in the following `application.yml` file
+6. Navigate to `http://localhost:8080/swagger-ui.html` in your browser to check everything is working correctly. You can change the default port in the following `application.yml` file
 
   ```yml
   server:
