@@ -12,6 +12,8 @@ public class UserDataDTO {
   @ApiModelProperty(position = 1)
   private String email;
   @ApiModelProperty(position = 2)
+  private String password;
+  @ApiModelProperty(position = 3)
   List<Role> roles;
 
   public String getUsername() {
@@ -28,6 +30,14 @@ public class UserDataDTO {
 
   public void setEmail(String email) {
     this.email = email;
+  }
+
+  public String getPassword() {
+    return password;
+  }
+
+  public void setPassword(String password) {
+    this.password = password;
   }
 
   public List<Role> getRoles() {
