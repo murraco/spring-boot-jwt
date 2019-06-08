@@ -12,6 +12,12 @@
 
 You can find a related post for this repository [here](https://medium.com/@xoor/jwt-authentication-service-44658409e12c).
 
+***
+
+<h3 align="center">Help this repo with a :star: if it's useful for you! :blush:</h3>
+
+***
+
 # File structure
 
 ```
