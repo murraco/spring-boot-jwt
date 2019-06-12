@@ -14,7 +14,7 @@ You can find a related post for this repository [here](https://medium.com/@xoor/
 
 ***
 
-<h3 align="center">Help this repo with a :star: if it's useful for you! :blush:</h3>
+<h3 align="center">Please help this repo with a :star: if you find it useful! :blush:</h3>
 
 ***
 
