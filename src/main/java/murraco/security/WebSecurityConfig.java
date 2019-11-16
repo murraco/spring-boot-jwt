@@ -45,6 +45,8 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 
     // Optional, if you want to test the API from a browser
     // http.httpBasic();
+
+    super.configure(http);
   }
 
   @Override
