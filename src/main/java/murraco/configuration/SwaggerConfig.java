@@ -39,7 +39,6 @@ public class SwaggerConfig {
         .useDefaultResponseMessages(false)//
         .securitySchemes(Collections.singletonList(apiKey()))
         .securityContexts(Collections.singletonList(securityContext()))
-        // .securitySchemes(Arrays.asList(new ApiKey("Bearer %token", "Authorization", "Header")))//
         .tags(new Tag("users", "Operations about users"))//
         .genericModelSubstitutes(Optional.class);
 
