@@ -18,6 +18,10 @@ You can find a related post for this repository [here](https://medium.com/@xoor/
 
 ***
 
+“**spring-boot-jwt** is being sponsored by the following tool; please help to support us by taking a look and signing up to a free trial”
+
+<a href="https://tracking.gitads.io/?repo=spring-boot-jwt"> <img src="https://images.gitads.io/spring-boot-jwt" alt="GitAds"/>
+
 # File structure
 
 ```
