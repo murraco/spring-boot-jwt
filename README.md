@@ -351,6 +351,12 @@ http.apply(new JwtTokenFilterConfigurer(jwtTokenProvider));
   $ mvn install
   ```
 
+5. Make sure you have a MySQL DB up and running, if you don't using docker is the easiest way
+
+  ```
+  $ docker run -p 3306:3306 -it mysql
+  ```
+
 5. Run the project
 
   ```
@@ -361,7 +367,7 @@ http.apply(new JwtTokenFilterConfigurer(jwtTokenProvider));
 
   ```yml
   server:
-    port: 8090
+    port: 8080
   ```
 
 7. Make a GET request to `/users/me` to check you're not authenticated. You should receive a response with a `403` with an `Access Denied` message since you haven't set your valid JWT token yet
