@@ -217,9 +217,9 @@ It's important to note that authorization claims will be included with the Acces
 
 Let's see how can we implement the JWT token based authentication using Java and Spring, while trying to reuse the Spring security default behavior where we can. The Spring Security framework comes with plug-in classes that already deal with authorization mechanisms such as: session cookies, HTTP Basic, and HTTP Digest. Nevertheless, it lacks from native support for JWT, and we need to get our hands dirty to make it work.
 
-## MySQL DB
+## H2 DB
 
-This demo is currently using a MySQL database called **user_db** that's automatically configured by Spring Boot. If you want to connect to another database you have to specify the connection in the `application.yml` file inside the resource directory. Note that `hibernate.hbm2ddl.auto=create-drop` will drop and create a clean database each time we deploy (you may want to change it if you are using this in a real project). Here's the example from the project:
+This demo is currently using an H2 database called **test_db** so you can run it quickly and out-of-the-box without much configuration. If you want to connect to a different database you have to specify the connection in the `application.yml` file inside the resource directory. Note that `hibernate.hbm2ddl.auto=create-drop` will drop and create a clean database each time we deploy (you may want to change it if you are using this in a real project). Here's the example from the project, see how easily you can swap comments on the `url` and `dialect` properties to use your own MySQL database:
 
 ```yml
 spring:
@@ -337,71 +337,71 @@ http.apply(new JwtTokenFilterConfigurer(jwtTokenProvider));
 
 2. Fork this repository and clone it
   
-  ```
-  $ git clone https://github.com/<your-user>/spring-boot-jwt
-  ```
-  
+```
+$ git clone https://github.com/<your-user>/spring-boot-jwt
+```
+
 3. Navigate into the folder  
 
-  ```
-  $ cd spring-boot-jwt
-  ```
+```
+$ cd spring-boot-jwt
+```
 
 4. Install dependencies
 
-  ```
-  $ mvn install
-  ```
-
-5. Make sure you have a MySQL DB up and running, if you don't using docker is the easiest way
-
-  ```
-  $ docker run -p 3306:3306 -it mysql
-  ```
+```
+$ mvn install
+```
 
 5. Run the project
 
-  ```
-  $ mvn spring-boot:run
-  ```
+```
+$ mvn spring-boot:run
+```
 
-6. Navigate to `http://localhost:8080/swagger-ui.html` in your browser to check everything is working correctly. You can change the default port in the following `application.yml` file
+6. Navigate to `http://localhost:8080/swagger-ui.html` in your browser to check everything is working correctly. You can change the default port in the `application.yml` file
 
-  ```yml
-  server:
-    port: 8080
-  ```
+```yml
+server:
+	port: 8080
+```
 
 7. Make a GET request to `/users/me` to check you're not authenticated. You should receive a response with a `403` with an `Access Denied` message since you haven't set your valid JWT token yet
 
-  ```
-  $ curl -X GET http://localhost:8080/users/me
-  ```
+```
+$ curl -X GET http://localhost:8080/users/me
+```
 
 8. Make a POST request to `/users/signin` with the default admin user we programatically created to get a valid JWT token
 
-  ```
-  $ curl -X POST 'http://localhost:8080/users/signin?username=admin&password=admin'
-  ```
+```
+$ curl -X POST 'http://localhost:8080/users/signin?username=admin&password=admin'
+```
 
 9. Add the JWT token as a Header parameter and make the initial GET request to `/users/me` again
 
-  ```
-  $ curl -X GET http://localhost:8080/users/me -H 'Authorization: Bearer <JWT_TOKEN>'
-  ```
+```
+$ curl -X GET http://localhost:8080/users/me -H 'Authorization: Bearer <JWT_TOKEN>'
+```
 
 10. And that's it, congrats! You should get a similar response to this one, meaning that you're now authenticated
 
-  ```javascript
-  {
-    "id": 1,
-    "username": "admin",
-    "email": "admin@email.com",
-    "roles": [
-      "ROLE_ADMIN"
-    ]
-  }
-  ``` 
+```javascript
+{
+  "id": 1,
+  "username": "admin",
+  "email": "admin@email.com",
+  "roles": [
+    "ROLE_ADMIN"
+  ]
+}
+```
+
+## Using MySQL instead of H2
+
+If you don't want to use H2 for testing and instead you prefer using your own MySQL database, you can comment/uncomment the corresponding lines in the `application.yml` file. It should look something like this, but it can vary depending on the version you're running:
+
+
 
 # Contribution
 
