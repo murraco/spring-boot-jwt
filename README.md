@@ -20,7 +20,7 @@ You can find a related post for this repository [here](https://medium.com/@xoor/
 
 # Sponsor
 
-You can support the project by checking out our sponsor page. It takes only one click:
+**spring-boot-jwt** is being sponsored by the following tool; please help to support us by taking a look and signing up to a free trial:
 
 <a href="https://tracking.gitads.io/?repo=spring-boot-jwt"> <img src="https://images.gitads.io/spring-boot-jwt" alt="GitAds"/> </a>
 
@@ -363,7 +363,7 @@ $ mvn spring-boot:run
 
 ```yml
 server:
-	port: 8080
+  port: 8080
 ```
 
 7. Make a GET request to `/users/me` to check you're not authenticated. You should receive a response with a `403` with an `Access Denied` message since you haven't set your valid JWT token yet
@@ -396,12 +396,6 @@ $ curl -X GET http://localhost:8080/users/me -H 'Authorization: Bearer <JWT_TOKE
   ]
 }
 ```
-
-## Using MySQL instead of H2
-
-If you don't want to use H2 for testing and instead you prefer using your own MySQL database, you can comment/uncomment the corresponding lines in the `application.yml` file. It should look something like this, but it can vary depending on the version you're running:
-
-
 
 # Contribution
 
