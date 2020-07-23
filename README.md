@@ -224,9 +224,10 @@ This demo is currently using a MySQL database called **user_db** that's automati
 ```yml
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/user_db
+    url: jdbc:h2:mem:test_db;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    # url: jdbc:mysql://localhost:3306/user_db
     username: root
-    password: null
+    password: root
   tomcat:
     max-wait: 20000
     max-active: 50
@@ -237,7 +238,8 @@ spring:
       ddl-auto: create-drop
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.MySQLDialect
+        dialect: org.hibernate.dialect.H2Dialect
+        # dialect: org.hibernate.dialect.MySQL8Dialect
         format_sql: true
         id:
           new_generator_mappings: false
