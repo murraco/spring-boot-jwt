@@ -1,6 +1,5 @@
 package murraco.configuration;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -27,6 +26,8 @@ import springfox.documentation.swagger2.annotations.EnableSwagger2;
 @Configuration
 @EnableSwagger2
 public class SwaggerConfig {
+
+  private static final String AUTHORIZATION = "Authorization";
 
   @Bean
   public Docket api() {
@@ -55,7 +56,7 @@ public class SwaggerConfig {
   }
   
   private ApiKey apiKey() {
-    return new ApiKey("Authorization", "Authorization", "header");
+    return new ApiKey(AUTHORIZATION, AUTHORIZATION, "header");
   }
 
   private SecurityContext securityContext() {
@@ -69,7 +70,7 @@ public class SwaggerConfig {
     AuthorizationScope authorizationScope = new AuthorizationScope("global", "accessEverything");
     AuthorizationScope[] authorizationScopes = new AuthorizationScope[1];
     authorizationScopes[0] = authorizationScope;
-    return Arrays.asList(new SecurityReference("Authorization", authorizationScopes));
+    return Collections.singletonList(new SecurityReference(AUTHORIZATION, authorizationScopes));
   }
 
 }

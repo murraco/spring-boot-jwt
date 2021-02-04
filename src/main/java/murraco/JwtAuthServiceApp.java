@@ -1,7 +1,7 @@
 package murraco;
 
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,12 +30,12 @@ public class JwtAuthServiceApp implements CommandLineRunner {
   }
 
   @Override
-  public void run(String... params) throws Exception {
+  public void run(String... params) {
     User admin = new User();
     admin.setUsername("admin");
     admin.setPassword("admin");
     admin.setEmail("admin@email.com");
-    admin.setRoles(new ArrayList<Role>(Arrays.asList(Role.ROLE_ADMIN)));
+    admin.setRoles(new ArrayList<>(Collections.singletonList(Role.ROLE_ADMIN)));
 
     userService.signup(admin);
 
@@ -43,7 +43,7 @@ public class JwtAuthServiceApp implements CommandLineRunner {
     client.setUsername("client");
     client.setPassword("client");
     client.setEmail("client@email.com");
-    client.setRoles(new ArrayList<Role>(Arrays.asList(Role.ROLE_CLIENT)));
+    client.setRoles(new ArrayList<>(Collections.singletonList(Role.ROLE_CLIENT)));
 
     userService.signup(client);
   }
