@@ -4,7 +4,7 @@ import java.util.List;
 
 import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
-import murraco.model.Role;
+import murraco.model.AppUserRole;
 
 @Data
 public class UserResponseDTO {
@@ -16,6 +16,6 @@ public class UserResponseDTO {
   @ApiModelProperty(position = 2)
   private String email;
   @ApiModelProperty(position = 3)
-  List<Role> roles;
+  List<AppUserRole> appUserRoles;
 
 }
