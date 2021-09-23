@@ -2,6 +2,7 @@ package murraco.service;
 
 import javax.servlet.http.HttpServletRequest;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -16,19 +17,13 @@ import murraco.repository.UserRepository;
 import murraco.security.JwtTokenProvider;
 
 @Service
+@RequiredArgsConstructor
 public class UserService {
 
-  @Autowired
-  private UserRepository userRepository;
-
-  @Autowired
-  private PasswordEncoder passwordEncoder;
-
-  @Autowired
-  private JwtTokenProvider jwtTokenProvider;
-
-  @Autowired
-  private AuthenticationManager authenticationManager;
+  private final UserRepository userRepository;
+  private final PasswordEncoder passwordEncoder;
+  private final JwtTokenProvider jwtTokenProvider;
+  private final AuthenticationManager authenticationManager;
 
   public String signin(String username, String password) {
     try {

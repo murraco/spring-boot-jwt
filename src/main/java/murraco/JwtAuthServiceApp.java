@@ -3,6 +3,7 @@ package murraco;
 import java.util.ArrayList;
 import java.util.Arrays;
 
+import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
@@ -15,10 +16,10 @@ import murraco.model.User;
 import murraco.service.UserService;
 
 @SpringBootApplication
+@RequiredArgsConstructor
 public class JwtAuthServiceApp implements CommandLineRunner {
 
-  @Autowired
-  UserService userService;
+  final UserService userService;
 
   public static void main(String[] args) {
     SpringApplication.run(JwtAuthServiceApp.class, args);

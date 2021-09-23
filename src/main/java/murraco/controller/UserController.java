@@ -2,6 +2,7 @@ package murraco.controller;
 
 import javax.servlet.http.HttpServletRequest;
 
+import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -28,13 +29,11 @@ import murraco.service.UserService;
 @RestController
 @RequestMapping("/users")
 @Api(tags = "users")
+@RequiredArgsConstructor
 public class UserController {
 
-  @Autowired
-  private UserService userService;
-
-  @Autowired
-  private ModelMapper modelMapper;
+  private final UserService userService;
+  private final ModelMapper modelMapper;
 
   @PostMapping("/signin")
   @ApiOperation(value = "${UserController.signin}")
