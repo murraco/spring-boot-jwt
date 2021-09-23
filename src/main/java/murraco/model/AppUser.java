@@ -17,7 +17,7 @@ import javax.validation.constraints.Size;
 @Entity
 @Data // Create getters and setters
 @NoArgsConstructor
-public class User {
+public class AppUser {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -34,6 +34,6 @@ public class User {
   private String password;
 
   @ElementCollection(fetch = FetchType.EAGER)
-  List<Role> roles;
+  List<AppUserRole> appUserRoles;
 
 }
