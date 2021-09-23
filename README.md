@@ -40,8 +40,8 @@ spring-boot-jwt/
  │       │   └── GlobalExceptionController.java
  │       │
  │       ├── model
- │       │   ├── Role.java
- │       │   └── User.java
+ │       │   ├── AppUserRole.java
+ │       │   └── AppUser.java
  │       │
  │       ├── repository
  │       │   └── UserRepository.java
