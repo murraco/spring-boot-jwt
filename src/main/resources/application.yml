@@ -1,37 +1,45 @@
 spring:
-  datasource:
-    url: jdbc:h2:mem:test_db;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
-    # url: jdbc:mysql://localhost:3306/user_db
-    username: root
-    password: root
-  tomcat:
-    max-wait: 20000
-    max-active: 50
-    max-idle: 20
-    min-idle: 15
-  jpa:
-    hibernate:
-      ddl-auto: create-drop
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.H2Dialect
-        # dialect: org.hibernate.dialect.MySQL8Dialect
-        format_sql: true
-        id:
-          new_generator_mappings: false
-
+    datasource:
+        url: jdbc:db2://desenvol1.uem.br:50000/desenvol
+        username: db2bnd
+        password: ibmdb2
+    jpa:
+        hibernate:
+            ddl-auto: none
+        properties:
+            hibernate:
+                dialect: org.hibernate.dialect.DB2Dialect
+                format_sql: true
+                id:
+                    new_generator_mappings: false    
+    tomcat:
+        max-wait: 20000
+        max-active: 50
+        max-idle: 20
+        min-idle: 15
+    mvc:
+        pathmatch:
+            matching-strategy: ant_path_matcher      
+          
 server:
-   port: 8080 # This is the default port anyway, but you can change it here
+    port: 8080
+    servlet:
+        context-path: /
+    forward-headers-strategy: framework
 
 security:
-  jwt:
-    token:
-      secret-key: secret-key
-      expire-length: 300000 # 5 minutes duration by default: 5 minutes * 60 seconds * 1000 miliseconds
-      
-UserController:
-  signin: Authenticates user and returns its JWT token.
-  signup: Creates user and returns its JWT token
-  delete: Deletes specific user by username
-  search: Returns specific user by username
-  me: Returns current user's data
+    jwt:
+        token:
+            secret-key: jwt.PwD|0=>[npd]'{µ€ʍ}/22!
+            expire-length: 300000 # 5 minutos (5 minutos * 60 segundos * 1000 milisegundos)
+            
+#springfox:
+#    documentation:
+#        enabled: true
+
+springdoc:
+    swagger-ui:
+        enabled: true
+        path: /swagger-ui.html
+        defaultModelsExpandDepth: -1
+        
