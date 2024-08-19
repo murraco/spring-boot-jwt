@@ -16,6 +16,10 @@
 
 *** -->
 
+# If this helped, consider buying me a coffee! ☕️
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/murraco)
+
 # File structure
 
 ```
