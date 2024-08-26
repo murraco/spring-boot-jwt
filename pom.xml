@@ -83,7 +83,7 @@
 			<!-- Generate beautiful documentation from a Swagger-compliant API. -->
 			<groupId>io.springfox</groupId>
 			<artifactId>springfox-swagger-ui</artifactId>
-			<version>2.9.2</version>
+			<version>2.10.0</version>
 		</dependency>
 		<dependency>
 			<!-- JSON Web Token Support -->
