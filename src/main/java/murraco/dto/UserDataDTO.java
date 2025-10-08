@@ -1,23 +1,25 @@
 package murraco.dto;
 
-import java.util.List;
-
-import io.swagger.annotations.ApiModelProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import murraco.model.AppUserRole;
 
+import java.util.List;
+
+import static io.swagger.v3.oas.annotations.media.Schema.AccessMode.READ_ONLY;
+
 @Data
 @NoArgsConstructor
 public class UserDataDTO {
-  
-  @ApiModelProperty(position = 0)
-  private String username;
-  @ApiModelProperty(position = 1)
-  private String email;
-  @ApiModelProperty(position = 2)
-  private String password;
-  @ApiModelProperty(position = 3)
+
+    @Schema(accessMode = READ_ONLY)
   List<AppUserRole> appUserRoles;
+    @Schema(accessMode = READ_ONLY)
+  private String username;
+    @Schema(accessMode = READ_ONLY)
+  private String email;
+    @Schema(accessMode = READ_ONLY)
+  private String password;
 
 }
