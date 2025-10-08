@@ -1,10 +1,8 @@
 package murraco.repository;
 
-import javax.transaction.Transactional;
-
-import org.springframework.data.jpa.repository.JpaRepository;
-
+import jakarta.transaction.Transactional;
 import murraco.model.AppUser;
+import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface UserRepository extends JpaRepository<AppUser, Integer> {
 
