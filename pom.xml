@@ -14,7 +14,7 @@
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<java.version>17</java.version>
 		<start-class>murraco.JwtAuthServiceApp</start-class>
-		<jjwt.version>0.12.6</jjwt.version>
+		<jjwt.version>0.13.0</jjwt.version>
 		<springdoc.version>2.8.8</springdoc.version>
 	</properties>
 
