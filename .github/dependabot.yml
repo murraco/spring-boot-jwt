@@ -6,22 +6,21 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 2
     groups:
-      # Test-scoped deps in Maven are reported as "development".
-      dev-dependencies:
-        dependency-type: "development"
-        update-types: ["minor", "patch"]
-      production-patches:
-        dependency-type: "production"
-        update-types: ["patch"]
+      # One catch-all group: every update type, compile and test scope, lands in a
+      # single PR per cycle. The previous split (dev minor+patch / prod patch) left
+      # production minors and all majors ungrouped, and each of those became its own
+      # PR -- that was the actual source of the PR flood, not the weekly cadence.
+      all-dependencies:
+        patterns: ["*"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 2
     groups:
       github-actions:
         patterns: ["*"]
