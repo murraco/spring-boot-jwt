@@ -1,6 +1,6 @@
 # Spring Boot JWT
 
-![](https://img.shields.io/badge/build-success-brightgreen.svg)
+[![CI](https://github.com/murraco/spring-boot-jwt/actions/workflows/ci.yml/badge.svg)](https://github.com/murraco/spring-boot-jwt/actions/workflows/ci.yml)
 
 # Stack
 
