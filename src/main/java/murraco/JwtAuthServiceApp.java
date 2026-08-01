@@ -39,7 +39,7 @@ public class JwtAuthServiceApp implements CommandLineRunner {
       admin.setPassword("admin123456");
       admin.setEmail("admin@email.com");
       admin.setAppUserRoles(new ArrayList<AppUserRole>(Arrays.asList(AppUserRole.ROLE_ADMIN)));
-      userService.signup(admin);
+      userService.register(admin);
     }
 
     if (!userRepository.existsByUsername("client")) {
@@ -48,7 +48,7 @@ public class JwtAuthServiceApp implements CommandLineRunner {
       client.setPassword("client123456");
       client.setEmail("client@email.com");
       client.setAppUserRoles(new ArrayList<AppUserRole>(Arrays.asList(AppUserRole.ROLE_CLIENT)));
-      userService.signup(client);
+      userService.register(client);
     }
   }
 

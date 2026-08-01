@@ -8,6 +8,7 @@
 ![](https://img.shields.io/badge/spring_boot_3.5-✓-blue.svg)
 ![](https://img.shields.io/badge/mysql-✓-blue.svg)
 ![](https://img.shields.io/badge/jwt-✓-blue.svg)
+![](https://img.shields.io/badge/refresh_tokens-✓-blue.svg)
 ![](https://img.shields.io/badge/springdoc_openapi-✓-blue.svg)
 
 <!-- ***
@@ -34,6 +35,8 @@ spring-boot-jwt/
  │       │   └── UserController.java
  │       │
  │       ├── dto
+ │       │   ├── AuthResponseDTO.java
+ │       │   ├── RefreshRequestDTO.java
  │       │   ├── UserDataDTO.java
  │       │   └── UserResponseDTO.java
  │       │
@@ -43,9 +46,11 @@ spring-boot-jwt/
  │       │
  │       ├── model
  │       │   ├── AppUserRole.java
- │       │   └── AppUser.java
+ │       │   ├── AppUser.java
+ │       │   └── RefreshToken.java
  │       │
  │       ├── repository
+ │       │   ├── RefreshTokenRepository.java
  │       │   └── UserRepository.java
  │       │
  │       ├── security
@@ -55,17 +60,19 @@ spring-boot-jwt/
  │       │   └── WebSecurityConfig.java
  │       │
  │       ├── service
+ │       │   ├── RefreshTokenService.java
  │       │   └── UserService.java
  │       │
  │       └── JwtAuthServiceApp.java
  │
  ├── src/main/resources/
- │   ├── application.yml        # default profile (dev), JWT placeholders
+ │   ├── application.yml        # default profile (dev), JWT + refresh token placeholders
  │   └── application-dev.yml    # H2, JPA, server.port, H2 console (dev)
  │
  ├── src/test/java/murraco/controller/
  │   └── UserControllerTest.java
  │
+ ├── .github/workflows/ci.yml
  ├── .gitignore
  ├── Dockerfile
  ├── LICENSE
@@ -76,7 +83,12 @@ spring-boot-jwt/
 
 # Architecture overview
 
-This is a REST API with **stateless JWT authentication**. The endpoints `/users/signin` and `/users/signup` are public; all other endpoints require a valid JWT in the `Authorization: Bearer <token>` header. Roles `ROLE_ADMIN` and `ROLE_CLIENT` are enforced via `@PreAuthorize` on controller methods.
+This is a REST API using the **access token + refresh token** pattern. Signin returns a pair:
+
+- a short-lived **access token** — a stateless JWT sent as `Authorization: Bearer <token>` on every request;
+- a long-lived **refresh token** — an opaque random string, stored server-side, used only to obtain a new access token.
+
+The endpoints `/users/signin`, `/users/signup`, `/users/refresh` and `/users/logout` are public; all other endpoints require a valid access token. Roles `ROLE_ADMIN` and `ROLE_CLIENT` are enforced via `@PreAuthorize` on controller methods.
 
 ```mermaid
 sequenceDiagram
@@ -85,11 +97,14 @@ sequenceDiagram
   participant Provider as JwtTokenProvider
   participant Controller
   participant Service
+  participant Refresh as RefreshTokenService
 
-  Note over Client,Service: Signin (no token)
+  Note over Client,Refresh: Signin (no token)
   Client->>Controller: POST /users/signin
   Controller->>Service: signin(username, password)
-  Service->>Client: JWT token
+  Service->>Refresh: issue(username)
+  Refresh->>Service: opaque refresh token (hash stored)
+  Service->>Client: accessToken + refreshToken
 
   Note over Client,Service: Protected request
   Client->>Filter: GET /users/me + Bearer JWT
@@ -98,16 +113,35 @@ sequenceDiagram
   Filter->>Controller: set SecurityContext, doFilter
   Controller->>Service: whoami(req)
   Service->>Client: UserResponseDTO
+
+  Note over Client,Refresh: Access token expired
+  Client->>Controller: POST /users/refresh {refreshToken}
+  Controller->>Service: refresh(refreshToken)
+  Service->>Refresh: rotate(refreshToken)
+  Refresh->>Refresh: verify, revoke old, issue new
+  Service->>Client: new accessToken + refreshToken
 ```
 
 ## JWT flow in this project
 
-1. **Obtain a token:** Send `POST /users/signin` with `username` and `password` (form or query params). The response is the JWT string.
-2. **Call protected APIs:** Send the token in the header: `Authorization: Bearer <token>`.
+1. **Obtain tokens:** Send `POST /users/signin` with `username` and `password` (form or query params). The response is a JSON object with `accessToken`, `refreshToken`, `tokenType` and `expiresIn`.
+2. **Call protected APIs:** Send the access token in the header: `Authorization: Bearer <accessToken>`.
 3. **Filter chain:** `JwtTokenFilter` reads the header, validates the token via `JwtTokenProvider`, loads the user via `MyUserDetails`, and sets Spring’s `SecurityContext`.
 4. **Authorization:** Controllers use `@PreAuthorize("hasRole('ROLE_ADMIN')")` (or similar) so only users with the right role can access the endpoint.
+5. **Renew:** When the access token expires (401), send `POST /users/refresh` with the refresh token. No access token is required — that endpoint is deliberately outside the JWT filter, since the whole point is that it works once the access token is dead.
+6. **Sign out:** `POST /users/logout` revokes the refresh token.
 
-Core classes: `JwtTokenFilter`, `JwtTokenProvider`, `MyUserDetails`, `WebSecurityConfig` (`SecurityFilterChain`), and `OpenApiConfig` (SpringDoc).
+Core classes: `JwtTokenFilter`, `JwtTokenProvider`, `RefreshTokenService`, `MyUserDetails`, `WebSecurityConfig` (`SecurityFilterChain`), and `OpenApiConfig` (SpringDoc).
+
+## Refresh token design
+
+The access token stays stateless — no database lookup on ordinary requests. Revocability is confined to the refresh token, which is checked against the database each time it is used. Three properties are worth calling out:
+
+- **Opaque, not a JWT.** Refresh tokens are 256 bits from `SecureRandom`, Base64url-encoded. They carry no claims; their only meaning is the database row they point at, which is what makes them revocable.
+- **Hashed at rest.** Only the SHA-256 hash is stored (`RefreshToken.tokenHash`), so a database leak does not hand out usable tokens — the same reasoning as password hashing.
+- **Single-use, with reuse detection.** Every refresh consumes the presented token and returns a replacement. If a token that was already consumed is presented again, that means two parties hold it — the legitimate client and someone who copied it — so **every** refresh token for that user is revoked and the request is rejected. The user must sign in again; the thief is locked out too.
+
+Tuning the two lifetimes is the main knob: a short `JWT_EXPIRE_MS` narrows the window in which a stolen access token is useful (it cannot be revoked before it expires), at the cost of more refresh round trips.
 
 # Introduction (https://jwt.io)
 
@@ -240,6 +274,8 @@ Some trade-offs have to be made with this approach:
 - File download API can be tricky to implement
 - True statelessness and revocation are mutually exclusive
 
+That last trade-off is the one this project takes a position on: the access token is fully stateless and cannot be revoked, so it is kept short-lived, while the **refresh token is stateful and revocable**. Statelessness is preserved where it matters for throughput — ordinary API requests hit no database for authentication — and given up only on the comparatively rare refresh call. See [Refresh token design](#refresh-token-design).
+
 **JWT Authentication flow is very simple**
 
 1. User obtains Refresh and Access tokens by providing credentials to the Authorization server
@@ -282,13 +318,14 @@ spring:
 
 1. `JwtTokenFilter`
 2. `JwtTokenProvider` (JJWT 0.12.x, HMAC-SHA256)
-3. `MyUserDetails`
-4. `WebSecurityConfig` (`SecurityFilterChain`, method security)
-5. `OpenApiConfig` (SpringDoc OpenAPI 3)
+3. `RefreshTokenService` (issue / rotate / revoke)
+4. `MyUserDetails`
+5. `WebSecurityConfig` (`SecurityFilterChain`, method security)
+6. `OpenApiConfig` (SpringDoc OpenAPI 3)
 
 **JwtTokenFilter**
 
-The `JwtTokenFilter` filter is applied to each API (`/**`) with exception of the signin token endpoint (`/users/signin`) and signup endpoint (`/users/signup`).
+The `JwtTokenFilter` filter is applied to each API (`/**`) with the exception of the unauthenticated endpoints: `/users/signin`, `/users/signup`, `/users/refresh` and `/users/logout`. Those are skipped via `shouldNotFilter` rather than merely being `permitAll`, because a client refreshing an expired session usually still has the stale `Authorization` header attached — and the filter rejects invalid tokens outright, which would make refreshing impossible exactly when it is needed.
 
 This filter has the following responsibilities:
 
@@ -314,6 +351,17 @@ The `JwtTokenProvider` has the following responsibilities:
 2. Extract identity and authorization claims from Access token and use them to create UserContext
 3. If Access token is malformed, expired or simply if token is not signed with the appropriate signing key Authentication exception will be thrown
 
+**RefreshTokenService**
+
+Owns the lifecycle of refresh tokens, backed by the `RefreshToken` entity:
+
+1. `issue(username)` — generates an opaque token, stores its SHA-256 hash with an expiry, returns the raw value (which is never persisted)
+2. `rotate(rawToken)` — validates the token, revokes it, and issues a replacement; reusing an already-consumed token revokes every token for that user
+3. `revoke(rawToken)` — used by logout; idempotent, so unknown tokens are silently accepted
+4. `deleteAllForUser(username)` — cleanup when an account is deleted
+
+Note the `dontRollbackOn = CustomException.class` on `rotate`: reuse detection revokes the user's tokens and *then* rejects the request, and without it the rollback triggered by throwing would undo the revocation — leaving the stolen tokens usable.
+
 **MyUserDetails**
 
 Implements `UserDetailsService` in order to define our own custom *loadUserbyUsername* function. The `UserDetailsService` interface is used to retrieve user-related data. It has one method named *loadUserByUsername* which finds a user entity based on the username and can be overridden to customize the process of finding the user.
@@ -330,7 +378,7 @@ public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
   http.csrf(csrf -> csrf.disable());
   http.sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
   http.authorizeHttpRequests(auth -> auth
-      .requestMatchers("/users/signin", "/users/signup").permitAll()
+      .requestMatchers("/users/signin", "/users/signup", "/users/refresh", "/users/logout").permitAll()
       .requestMatchers("/h2-console/**").permitAll()
       .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
       .anyRequest().authenticated());
@@ -351,7 +399,8 @@ For **production**, set the JWT secret via environment variables. The default `s
 | Variable | Description | Default |
 |----------|--------------|---------|
 | `JWT_SECRET` | Secret key used to sign JWT tokens. Use a long, random value (e.g. 256+ bits). | `secret-key` (dev only) |
-| `JWT_EXPIRE_MS` | Token validity in milliseconds. | `300000` (5 minutes) |
+| `JWT_EXPIRE_MS` | Access token validity in milliseconds. Keep it short — an access token cannot be revoked before it expires. | `300000` (5 minutes) |
+| `JWT_REFRESH_EXPIRE_MS` | Refresh token validity in milliseconds. Determines how long a client can stay signed in without re-entering credentials. | `604800000` (7 days) |
 
 Example: `export JWT_SECRET=your-secure-random-secret` before running the application.
 
@@ -404,22 +453,31 @@ server:
 $ curl -X GET http://localhost:8080/users/me
 ```
 
-8. Make a POST request to `/users/signin` with the default admin user we programmatically created to get a valid JWT token
+8. Make a POST request to `/users/signin` with the default admin user we programmatically created to get a token pair
 
 ```
 $ curl -X POST 'http://localhost:8080/users/signin?username=admin&password=admin123456'
 ```
 
-To **sign up** a new user (returns a JWT):
+```json
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiJ9...",
+  "refreshToken": "7-prsdY5Dcpup-zgr9tUiDAAPvqmpcvIm4vwSbdNFmg",
+  "tokenType": "Bearer",
+  "expiresIn": 300
+}
+```
+
+To **sign up** a new user (also returns a token pair):
 
 ```
 $ curl -X POST http://localhost:8080/users/signup -H "Content-Type: application/json" -d '{"username":"newuser","email":"new@example.com","password":"password8","appUserRoles":["ROLE_CLIENT"]}'
 ```
 
-9. Add the JWT token as a Header parameter and make the initial GET request to `/users/me` again
+9. Add the access token as a Header parameter and make the initial GET request to `/users/me` again
 
 ```
-$ curl -X GET http://localhost:8080/users/me -H 'Authorization: Bearer <JWT_TOKEN>'
+$ curl -X GET http://localhost:8080/users/me -H 'Authorization: Bearer <ACCESS_TOKEN>'
 ```
 
 10. And that's it, congrats! You should get a similar response to this one, meaning that you're now authenticated
@@ -435,6 +493,22 @@ $ curl -X GET http://localhost:8080/users/me -H 'Authorization: Bearer <JWT_TOKE
 }
 ```
 
+11. After `expiresIn` seconds the access token stops working and `/users/me` returns `401`. Exchange the refresh token for a fresh pair — note that no `Authorization` header is needed
+
+```
+$ curl -X POST http://localhost:8080/users/refresh -H "Content-Type: application/json" -d '{"refreshToken":"<REFRESH_TOKEN>"}'
+```
+
+The response has the same shape as signin. **The refresh token you just sent is now dead** — store the new one and use it for the next refresh. Replaying the old one returns `401` and revokes every refresh token for that user (see [Refresh token design](#refresh-token-design)).
+
+12. To sign out, revoke the refresh token
+
+```
+$ curl -X POST http://localhost:8080/users/logout -H "Content-Type: application/json" -d '{"refreshToken":"<REFRESH_TOKEN>"}'
+```
+
+Returns `204 No Content`. The matching access token remains valid until it expires — that is the inherent trade-off of stateless access tokens, and the reason to keep `JWT_EXPIRE_MS` short.
+
 # Testing
 
 Run the suite with:
@@ -445,9 +519,26 @@ Run the suite with:
 
 Integration-style tests use `@SpringBootTest` + `MockMvc`. For environments where the Mockito inline mock maker cannot attach to the JVM, the project uses the **subclass** mock maker via `src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker`.
 
+`UserControllerTest` covers signin/signup, role-protected endpoints, and the refresh flow end to end: rotation on every refresh, rejection of a replayed token, revocation of the whole token family after reuse is detected, logout, and the case that matters most — refreshing while the `Authorization` header carries a dead access token.
+
 # Version notes
 
-This project targets **Spring Boot 3.5.x** (LTS line; see `spring-boot-starter-parent` version in `pom.xml`), **Java 17+**, **Spring Security 6** (`SecurityFilterChain`, `authorizeHttpRequests`), **Jakarta EE** namespaces (`jakarta.*`), **JJWT 0.12.x**, and **SpringDoc OpenAPI** (replacing Springfox).
+This project targets **Spring Boot 3.5.x** (LTS line; see `spring-boot-starter-parent` version in `pom.xml`), **Java 17+**, **Spring Security 6** (`SecurityFilterChain`, `authorizeHttpRequests`), **Jakarta EE** namespaces (`jakarta.*`), **JJWT 0.12.x**, and **SpringDoc OpenAPI** (replacing Springfox). Authentication uses short-lived JWT access tokens paired with rotating, revocable refresh tokens.
+
+# Breaking changes: refresh token support
+
+If you are updating an existing fork, the auth endpoints changed shape:
+
+| Before | Now |
+|--------|-----|
+| `POST /users/signin` returned the JWT as a bare string | Returns JSON: `{accessToken, refreshToken, tokenType, expiresIn}` |
+| `POST /users/signup` returned the JWT as a bare string | Returns the same JSON token pair |
+| `GET /users/refresh` required a **valid** access token and returned a new one | Replaced by `POST /users/refresh`, which takes `{"refreshToken": "..."}` and requires no access token |
+| — | New `POST /users/logout` revokes a refresh token |
+
+The old `GET /users/refresh` was a sliding-session endpoint: because it was guarded by `@PreAuthorize`, it only worked while the access token was still valid, and stopped working at exactly the moment a client needs to renew. It has been removed rather than kept alongside the new endpoint.
+
+Clients need two changes: parse the signin response as JSON, and store the refresh token, replacing it after each refresh (tokens are single-use). Schema-wise, a `refresh_token` table is added — it is created automatically under `ddl-auto`, but a real deployment should add a migration.
 
 # Migration from Spring Boot 2.x
 

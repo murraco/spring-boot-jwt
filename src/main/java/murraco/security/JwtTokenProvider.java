@@ -68,6 +68,11 @@ public class JwtTokenProvider {
         .compact();
   }
 
+  /** Access token lifetime in seconds, as reported to clients in the auth response. */
+  public long getValidityInSeconds() {
+    return validityInMilliseconds / 1000;
+  }
+
   public Authentication getAuthentication(String token) {
     UserDetails userDetails = myUserDetails.loadUserByUsername(getUsername(token));
     return new UsernamePasswordAuthenticationToken(userDetails, "", userDetails.getAuthorities());

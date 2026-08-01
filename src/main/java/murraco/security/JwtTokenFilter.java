@@ -1,6 +1,7 @@
 package murraco.security;
 
 import java.io.IOException;
+import java.util.Set;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -19,10 +20,24 @@ public class JwtTokenFilter extends OncePerRequestFilter {
 
   private static final Logger log = LoggerFactory.getLogger(JwtTokenFilter.class);
 
+  /**
+   * Endpoints that authenticate by other means and must stay reachable with an expired access
+   * token — refreshing is exactly what a client does once its access token is no longer valid, and
+   * clients routinely keep sending the stale Authorization header while doing so.
+   */
+  private static final Set<String> UNAUTHENTICATED_PATHS =
+      Set.of("/users/signin", "/users/signup", "/users/refresh", "/users/logout");
+
   private final JwtTokenProvider jwtTokenProvider;
 
   public JwtTokenFilter(JwtTokenProvider jwtTokenProvider) {
     this.jwtTokenProvider = jwtTokenProvider;
+  }
+
+  @Override
+  protected boolean shouldNotFilter(HttpServletRequest request) {
+    String path = request.getRequestURI().substring(request.getContextPath().length());
+    return UNAUTHENTICATED_PATHS.contains(path);
   }
 
   @Override

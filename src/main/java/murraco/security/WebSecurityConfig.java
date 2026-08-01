@@ -29,7 +29,7 @@ public class WebSecurityConfig {
     http.csrf(csrf -> csrf.disable());
     http.sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
     http.authorizeHttpRequests(auth -> auth
-        .requestMatchers("/users/signin", "/users/signup").permitAll()
+        .requestMatchers("/users/signin", "/users/signup", "/users/refresh", "/users/logout").permitAll()
         .requestMatchers("/h2-console/**").permitAll()
         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
         .anyRequest().authenticated());
