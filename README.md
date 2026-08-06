@@ -2,7 +2,9 @@
 
 [![CI](https://github.com/murraco/spring-boot-jwt/actions/workflows/ci.yml/badge.svg)](https://github.com/murraco/spring-boot-jwt/actions/workflows/ci.yml)
 
-# Stack
+A JWT authentication service built with Spring Boot and Spring Security, using short-lived access tokens paired with rotating, revocable refresh tokens.
+
+## Stack
 
 ![](https://img.shields.io/badge/java_17-✓-blue.svg)
 ![](https://img.shields.io/badge/spring_boot_3.5-✓-blue.svg)
@@ -11,143 +13,11 @@
 ![](https://img.shields.io/badge/refresh_tokens-✓-blue.svg)
 ![](https://img.shields.io/badge/springdoc_openapi-✓-blue.svg)
 
-<!-- ***
-
-<h3 align="center">Please help this repo with a ⭐ or buy me a coffee if you find it useful! :blush:</h3>
-
-*** -->
-
-# If this helped, consider buying me a coffee! ☕️
-
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/murraco)
-
-# File structure
-
-```
-spring-boot-jwt/
- │
- ├── src/main/java/
- │   └── murraco
- │       ├── configuration
- │       │   └── OpenApiConfig.java
- │       │
- │       ├── controller
- │       │   └── UserController.java
- │       │
- │       ├── dto
- │       │   ├── AuthResponseDTO.java
- │       │   ├── RefreshRequestDTO.java
- │       │   ├── UserDataDTO.java
- │       │   └── UserResponseDTO.java
- │       │
- │       ├── exception
- │       │   ├── CustomException.java
- │       │   └── GlobalExceptionHandlerController.java
- │       │
- │       ├── model
- │       │   ├── AppUserRole.java
- │       │   ├── AppUser.java
- │       │   └── RefreshToken.java
- │       │
- │       ├── repository
- │       │   ├── RefreshTokenRepository.java
- │       │   └── UserRepository.java
- │       │
- │       ├── security
- │       │   ├── JwtTokenFilter.java
- │       │   ├── JwtTokenProvider.java
- │       │   ├── MyUserDetails.java
- │       │   └── WebSecurityConfig.java
- │       │
- │       ├── service
- │       │   ├── RefreshTokenService.java
- │       │   └── UserService.java
- │       │
- │       └── JwtAuthServiceApp.java
- │
- ├── src/main/resources/
- │   ├── application.yml        # default profile (dev), JWT + refresh token placeholders
- │   └── application-dev.yml    # H2, JPA, server.port, H2 console (dev)
- │
- ├── src/test/java/murraco/controller/
- │   └── UserControllerTest.java
- │
- ├── .github/workflows/ci.yml
- ├── .gitignore
- ├── Dockerfile
- ├── LICENSE
- ├── mvnw, mvnw.cmd
- ├── README.md
- └── pom.xml
-```
-
-# Architecture overview
-
-This is a REST API using the **access token + refresh token** pattern. Signin returns a pair:
-
-- a short-lived **access token** — a stateless JWT sent as `Authorization: Bearer <token>` on every request;
-- a long-lived **refresh token** — an opaque random string, stored server-side, used only to obtain a new access token.
-
-The endpoints `/users/signin`, `/users/signup`, `/users/refresh` and `/users/logout` are public; all other endpoints require a valid access token. Roles `ROLE_ADMIN` and `ROLE_CLIENT` are enforced via `@PreAuthorize` on controller methods.
-
-```mermaid
-sequenceDiagram
-  participant Client
-  participant Filter as JwtTokenFilter
-  participant Provider as JwtTokenProvider
-  participant Controller
-  participant Service
-  participant Refresh as RefreshTokenService
-
-  Note over Client,Refresh: Signin (no token)
-  Client->>Controller: POST /users/signin
-  Controller->>Service: signin(username, password)
-  Service->>Refresh: issue(username)
-  Refresh->>Service: opaque refresh token (hash stored)
-  Service->>Client: accessToken + refreshToken
-
-  Note over Client,Service: Protected request
-  Client->>Filter: GET /users/me + Bearer JWT
-  Filter->>Provider: resolveToken, validateToken
-  Provider->>Provider: getAuthentication (load user)
-  Filter->>Controller: set SecurityContext, doFilter
-  Controller->>Service: whoami(req)
-  Service->>Client: UserResponseDTO
-
-  Note over Client,Refresh: Access token expired
-  Client->>Controller: POST /users/refresh {refreshToken}
-  Controller->>Service: refresh(refreshToken)
-  Service->>Refresh: rotate(refreshToken)
-  Refresh->>Refresh: verify, revoke old, issue new
-  Service->>Client: new accessToken + refreshToken
-```
-
-## JWT flow in this project
-
-1. **Obtain tokens:** Send `POST /users/signin` with `username` and `password` (form or query params). The response is a JSON object with `accessToken`, `refreshToken`, `tokenType` and `expiresIn`.
-2. **Call protected APIs:** Send the access token in the header: `Authorization: Bearer <accessToken>`.
-3. **Filter chain:** `JwtTokenFilter` reads the header, validates the token via `JwtTokenProvider`, loads the user via `MyUserDetails`, and sets Spring’s `SecurityContext`.
-4. **Authorization:** Controllers use `@PreAuthorize("hasRole('ROLE_ADMIN')")` (or similar) so only users with the right role can access the endpoint.
-5. **Renew:** When the access token expires (401), send `POST /users/refresh` with the refresh token. No access token is required — that endpoint is deliberately outside the JWT filter, since the whole point is that it works once the access token is dead.
-6. **Sign out:** `POST /users/logout` revokes the refresh token.
-
-Core classes: `JwtTokenFilter`, `JwtTokenProvider`, `RefreshTokenService`, `MyUserDetails`, `WebSecurityConfig` (`SecurityFilterChain`), and `OpenApiConfig` (SpringDoc).
-
-## Refresh token design
-
-The access token stays stateless — no database lookup on ordinary requests. Revocability is confined to the refresh token, which is checked against the database each time it is used. Three properties are worth calling out:
-
-- **Opaque, not a JWT.** Refresh tokens are 256 bits from `SecureRandom`, Base64url-encoded. They carry no claims; their only meaning is the database row they point at, which is what makes them revocable.
-- **Hashed at rest.** Only the SHA-256 hash is stored (`RefreshToken.tokenHash`), so a database leak does not hand out usable tokens — the same reasoning as password hashing.
-- **Single-use, with reuse detection.** Every refresh consumes the presented token and returns a replacement. If a token that was already consumed is presented again, that means two parties hold it — the legitimate client and someone who copied it — so **every** refresh token for that user is revoked and the request is rejected. The user must sign in again; the thief is locked out too.
-
-Tuning the two lifetimes is the main knob: a short `JWT_EXPIRE_MS` narrows the window in which a stolen access token is useful (it cannot be revoked before it expires), at the cost of more refresh round trips.
-
-# Introduction (https://jwt.io)
+## Introduction (https://jwt.io)
 
 Just to throw some background in, we have a wonderful introduction, courtesy of **jwt.io**! Let’s take a look:
 
-## What is JSON Web Token?
+### What is JSON Web Token?
 
 JSON Web Token (JWT) is an open standard (RFC 7519) that defines a compact and self-contained way for securely transmitting information between parties as a JSON object. This information can be verified and trusted because it is digitally signed. JWTs can be signed using a secret (with the HMAC algorithm) or a public/private key pair using RSA.
 
@@ -157,7 +27,7 @@ Let's explain some concepts of this definition further.
 
 **Self-contained**: The payload contains all the required information about the user, avoiding the need to query the database more than once.
 
-## When should you use JSON Web Tokens?
+### When should you use JSON Web Tokens?
 
 Here are some scenarios where JSON Web Tokens are useful:
 
@@ -165,7 +35,7 @@ Here are some scenarios where JSON Web Tokens are useful:
 
 **Information Exchange**: JSON Web Tokens are a good way of securely transmitting information between parties. Because JWTs can be signed—for example, using public/private key pairs—you can be sure the senders are who they say they are. Additionally, as the signature is calculated using the header and the payload, you can also verify that the content hasn't been tampered with.
 
-## What is the JSON Web Token structure?
+### What is the JSON Web Token structure?
 
 JSON Web Tokens consist of three parts separated by dots **(.)**, which are:
 
@@ -240,7 +110,7 @@ The following shows a JWT that has the previous header and payload encoded, and 
 
 ![](https://camo.githubusercontent.com/a56953523c443d6a97204adc5e39b4b8c195b453/68747470733a2f2f63646e2e61757468302e636f6d2f636f6e74656e742f6a77742f656e636f6465642d6a7774332e706e67)
 
-## How do JSON Web Tokens work?
+### How do JSON Web Tokens work?
 
 In authentication, when the user successfully logs in using their credentials, a JSON Web Token will be returned and must be saved locally (typically in local storage, but cookies can be also used), instead of the traditional approach of creating a session in the server and returning a cookie.
 
@@ -256,7 +126,7 @@ The following diagram shows this process:
 
 ![](https://camo.githubusercontent.com/5871e9f0234542cd89bab9b9c100b20c9eb5b789/68747470733a2f2f63646e2e61757468302e636f6d2f636f6e74656e742f6a77742f6a77742d6469616772616d2e706e67) 
 
-# JWT Authentication Summary
+## JWT authentication summary
 
 Token based authentication schema's became immensely popular in recent times, as they provide important benefits when compared to sessions/cookies:
 
@@ -284,11 +154,133 @@ That last trade-off is the one this project takes a position on: the access toke
 
 It's important to note that authorization claims will be included with the Access token. Why is this important? Well, let's say that authorization claims (e.g user privileges in the database) are changed during the life time of Access token. Those changes will not become effective until new Access token is issued. In most cases this is not big issue, because Access tokens are short-lived. Otherwise go with the opaque token pattern.
 
-# Implementation Details
+## File structure
+
+```
+spring-boot-jwt/
+ │
+ ├── src/main/java/
+ │   └── murraco
+ │       ├── configuration
+ │       │   └── OpenApiConfig.java
+ │       │
+ │       ├── controller
+ │       │   └── UserController.java
+ │       │
+ │       ├── dto
+ │       │   ├── AuthResponseDTO.java
+ │       │   ├── RefreshRequestDTO.java
+ │       │   ├── UserDataDTO.java
+ │       │   └── UserResponseDTO.java
+ │       │
+ │       ├── exception
+ │       │   ├── CustomException.java
+ │       │   └── GlobalExceptionHandlerController.java
+ │       │
+ │       ├── model
+ │       │   ├── AppUserRole.java
+ │       │   ├── AppUser.java
+ │       │   └── RefreshToken.java
+ │       │
+ │       ├── repository
+ │       │   ├── RefreshTokenRepository.java
+ │       │   └── UserRepository.java
+ │       │
+ │       ├── security
+ │       │   ├── JwtTokenFilter.java
+ │       │   ├── JwtTokenProvider.java
+ │       │   ├── MyUserDetails.java
+ │       │   └── WebSecurityConfig.java
+ │       │
+ │       ├── service
+ │       │   ├── RefreshTokenService.java
+ │       │   └── UserService.java
+ │       │
+ │       └── JwtAuthServiceApp.java
+ │
+ ├── src/main/resources/
+ │   ├── application.yml        # default profile (dev), JWT + refresh token placeholders
+ │   └── application-dev.yml    # H2, JPA, server.port, H2 console (dev)
+ │
+ ├── src/test/java/murraco/controller/
+ │   └── UserControllerTest.java
+ │
+ ├── .github/workflows/ci.yml
+ ├── .gitignore
+ ├── Dockerfile
+ ├── LICENSE
+ ├── mvnw, mvnw.cmd
+ ├── README.md
+ └── pom.xml
+```
+
+## Architecture overview
+
+This is a REST API using the **access token + refresh token** pattern. Signin returns a pair:
+
+- a short-lived **access token** — a stateless JWT sent as `Authorization: Bearer <token>` on every request;
+- a long-lived **refresh token** — an opaque random string, stored server-side, used only to obtain a new access token.
+
+The endpoints `/users/signin`, `/users/signup`, `/users/refresh` and `/users/logout` are public; all other endpoints require a valid access token. Roles `ROLE_ADMIN` and `ROLE_CLIENT` are enforced via `@PreAuthorize` on controller methods.
+
+```mermaid
+sequenceDiagram
+  participant Client
+  participant Filter as JwtTokenFilter
+  participant Provider as JwtTokenProvider
+  participant Controller
+  participant Service
+  participant Refresh as RefreshTokenService
+
+  Note over Client,Refresh: Signin (no token)
+  Client->>Controller: POST /users/signin
+  Controller->>Service: signin(username, password)
+  Service->>Refresh: issue(username)
+  Refresh->>Service: opaque refresh token (hash stored)
+  Service->>Client: accessToken + refreshToken
+
+  Note over Client,Service: Protected request
+  Client->>Filter: GET /users/me + Bearer JWT
+  Filter->>Provider: resolveToken, validateToken
+  Provider->>Provider: getAuthentication (load user)
+  Filter->>Controller: set SecurityContext, doFilter
+  Controller->>Service: whoami(req)
+  Service->>Client: UserResponseDTO
+
+  Note over Client,Refresh: Access token expired
+  Client->>Controller: POST /users/refresh {refreshToken}
+  Controller->>Service: refresh(refreshToken)
+  Service->>Refresh: rotate(refreshToken)
+  Refresh->>Refresh: verify, revoke old, issue new
+  Service->>Client: new accessToken + refreshToken
+```
+
+### JWT flow in this project
+
+1. **Obtain tokens:** Send `POST /users/signin` with `username` and `password` (form or query params). The response is a JSON object with `accessToken`, `refreshToken`, `tokenType` and `expiresIn`.
+2. **Call protected APIs:** Send the access token in the header: `Authorization: Bearer <accessToken>`.
+3. **Filter chain:** `JwtTokenFilter` reads the header, validates the token via `JwtTokenProvider`, loads the user via `MyUserDetails`, and sets Spring’s `SecurityContext`.
+4. **Authorization:** Controllers use `@PreAuthorize("hasRole('ROLE_ADMIN')")` (or similar) so only users with the right role can access the endpoint.
+5. **Renew:** When the access token expires (401), send `POST /users/refresh` with the refresh token. No access token is required — that endpoint is deliberately outside the JWT filter, since the whole point is that it works once the access token is dead.
+6. **Sign out:** `POST /users/logout` revokes the refresh token.
+
+Core classes: `JwtTokenFilter`, `JwtTokenProvider`, `RefreshTokenService`, `MyUserDetails`, `WebSecurityConfig` (`SecurityFilterChain`), and `OpenApiConfig` (SpringDoc).
+
+### Refresh token design
+
+The access token stays stateless — no database lookup on ordinary requests. Revocability is confined to the refresh token, which is checked against the database each time it is used. Three properties are worth calling out:
+
+- **Opaque, not a JWT.** Refresh tokens are 256 bits from `SecureRandom`, Base64url-encoded. They carry no claims; their only meaning is the database row they point at, which is what makes them revocable.
+- **Hashed at rest.** Only the SHA-256 hash is stored (`RefreshToken.tokenHash`), so a database leak does not hand out usable tokens — the same reasoning as password hashing.
+- **Single-use, with reuse detection.** Every refresh consumes the presented token and returns a replacement. If a token that was already consumed is presented again, that means two parties hold it — the legitimate client and someone who copied it — so **every** refresh token for that user is revoked and the request is rejected. The user must sign in again; the thief is locked out too.
+
+Tuning the two lifetimes is the main knob: a short `JWT_EXPIRE_MS` narrows the window in which a stolen access token is useful (it cannot be revoked before it expires), at the cost of more refresh round trips.
+
+## Implementation details
 
 Let's see how can we implement the JWT token based authentication using Java and Spring, while trying to reuse the Spring security default behavior where we can. The Spring Security framework comes with plug-in classes that already deal with authorization mechanisms such as: session cookies, HTTP Basic, and HTTP Digest. Nevertheless, it lacks from native support for JWT, and we need to get our hands dirty to make it work.
 
-## H2 DB
+### H2 DB
 
 This demo uses an H2 in-memory database **test_db** when the **`dev`** profile is active (see `application-dev.yml`, merged with `application.yml`). The dev profile enables the H2 web console (`spring.h2.console.enabled: true`). Open **`http://localhost:8080/h2-console`** (JDBC URL `jdbc:h2:mem:test_db`, user `root`, password `root` as in the YAML). Spring Security permits `/h2-console/**` for local testing only—do not expose that in production.
 
@@ -314,7 +306,7 @@ spring:
           new_generator_mappings: false
 ```
 
-## Core Code
+### Core code
 
 1. `JwtTokenFilter`
 2. `JwtTokenProvider` (JJWT 0.12.x, HMAC-SHA256)
@@ -390,9 +382,9 @@ public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 }
 ```
 
-# How to use this code?
+## Quick start
 
-## Configuration
+### Configuration
 
 For **production**, set the JWT secret via environment variables. The default `secret-key` in `application.yml` is for local development only and must not be used in production.
 
@@ -412,7 +404,7 @@ Example: `export JWT_SECRET=your-secure-random-secret` before running the applic
 
 **Docker:** Build and run with `docker build -t spring-boot-jwt .` then `docker run -p 8080:8080 spring-boot-jwt`. For production, pass `-e JWT_SECRET=your-secret`.
 
-## Setup
+### Setup
 
 1. Install **JDK 17 or newer** (LTS recommended, e.g. Temurin 17 or 21) and [Maven](https://maven.apache.org) 3.6.3+, or use the included **`./mvnw`** wrapper
 
@@ -509,7 +501,7 @@ $ curl -X POST http://localhost:8080/users/logout -H "Content-Type: application/
 
 Returns `204 No Content`. The matching access token remains valid until it expires — that is the inherent trade-off of stateless access tokens, and the reason to keep `JWT_EXPIRE_MS` short.
 
-# Testing
+## Testing
 
 Run the suite with:
 
@@ -521,11 +513,11 @@ Integration-style tests use `@SpringBootTest` + `MockMvc`. For environments wher
 
 `UserControllerTest` covers signin/signup, role-protected endpoints, and the refresh flow end to end: rotation on every refresh, rejection of a replayed token, revocation of the whole token family after reuse is detected, logout, and the case that matters most — refreshing while the `Authorization` header carries a dead access token.
 
-# Version notes
+## Version notes
 
 This project targets **Spring Boot 3.5.x** (LTS line; see `spring-boot-starter-parent` version in `pom.xml`), **Java 17+**, **Spring Security 6** (`SecurityFilterChain`, `authorizeHttpRequests`), **Jakarta EE** namespaces (`jakarta.*`), **JJWT 0.12.x**, and **SpringDoc OpenAPI** (replacing Springfox). Authentication uses short-lived JWT access tokens paired with rotating, revocable refresh tokens.
 
-# Breaking changes: refresh token support
+## Breaking changes
 
 If you are updating an existing fork, the auth endpoints changed shape:
 
@@ -540,17 +532,23 @@ The old `GET /users/refresh` was a sliding-session endpoint: because it was guar
 
 Clients need two changes: parse the signin response as JSON, and store the refresh token, replacing it after each refresh (tokens are single-use). Schema-wise, a `refresh_token` table is added — it is created automatically under `ddl-auto`, but a real deployment should add a migration.
 
-# Migration from Spring Boot 2.x
+## Migration from Spring Boot 2.x
 
 If you are upgrading an older fork: replace `javax.*` with `jakarta.*`, migrate security configuration to `SecurityFilterChain`, swap Springfox for SpringDoc, upgrade JWT libraries to JJWT 0.12+, and run on **JDK 17+**. See the [Spring Boot 3.0 migration guide](https://github.com/spring-projects/spring-boot/wiki/Spring-Boot-3.0-Migration-Guide) and [Spring Security 6.0 migration](https://docs.spring.io/spring-security/reference/migration/index.html).
 
-# Contribution
+## Contribution
 
 - Report issues
 - Open pull request with improvements
 - Spread the word
 - Reach out to me directly at <mauriurraco@gmail.com>
 
-# Buy me a coffee to show your support!
+## License
+
+Released under the [MIT License](LICENSE).
+
+## Support
+
+If this project helped you, consider buying me a coffee ☕️
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/murraco)
