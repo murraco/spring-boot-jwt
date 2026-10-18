@@ -1,4 +1,10 @@
 # Development profile: in-memory H2, default port
+security:
+  jwt:
+    token:
+      # Development only; other profiles require an explicit signing secret.
+      secret-key: ${JWT_SECRET:secret-key}
+
 spring:
   h2:
     console:

@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory;
 @RequiredArgsConstructor
 public class JwtTokenProvider {
 
-  @Value("${security.jwt.token.secret-key:secret-key}")
+  @Value("${security.jwt.token.secret-key}")
   private String secretKey;
 
   @Value("${security.jwt.token.expire-length:3600000}")
@@ -47,6 +47,9 @@ public class JwtTokenProvider {
 
   @PostConstruct
   protected void init() {
+    if (secretKey == null || secretKey.isBlank()) {
+      throw new IllegalStateException("JWT signing secret is missing or blank; configure JWT_SECRET before starting the application");
+    }
     try {
       byte[] keyBytes = MessageDigest.getInstance("SHA-256").digest(secretKey.getBytes(StandardCharsets.UTF_8));
       signingKey = Keys.hmacShaKeyFor(keyBytes);
