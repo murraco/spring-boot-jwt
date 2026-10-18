@@ -5,8 +5,8 @@ spring:
 security:
   jwt:
     token:
-      # For production, set JWT_SECRET (and optionally JWT_EXPIRE_MS) via environment variables. Do not use the default in production.
-      secret-key: ${JWT_SECRET:secret-key}
+      # Set JWT_SECRET outside development (and optionally JWT_EXPIRE_MS).
+      secret-key: ${JWT_SECRET:}
       expire-length: ${JWT_EXPIRE_MS:300000} # 5 minutes default; override with JWT_EXPIRE_MS (milliseconds)
     refresh-token:
       expire-length: ${JWT_REFRESH_EXPIRE_MS:604800000} # 7 days default; override with JWT_REFRESH_EXPIRE_MS (milliseconds)
